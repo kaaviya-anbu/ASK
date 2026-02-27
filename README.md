@@ -1,152 +1,138 @@
-# EXP-4: ASK & FSK
-# NAME: KAAVIYA A
-# REGISTER NUMBER: 212224060111
-
+# NAME:KAAVIYA A
+# REG NUM:212224060111
+# ASK
+# FSK
 # Aim
 Write a simple Python program for the modulation and demodulation of ASK and FSK.
 # Tools required
-1.Personal Computer
-
-2.Google Colab
-# Program
-# ASK
+Google colab
+# Program(ASK)
 ```
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, lfilter
-# Butterworth low-pass filter for demodulation
+
 def butter_lowpass_filter(data, cutoff, fs, order=5):
-  nyquist = 0.5*fs
-  normal_cutoff = cutoff / nyquist
-  b, a = butter(order, normal_cutoff, btype='low', analog=False)
-  return lfilter(b, a, data)
-# Parameters
-fs = 1000 # Sampling frequency
-f_carrier = 50 # Carrier frequency
-bit_rate = 10 # Data rate
-T = 1 # Total time duration
-t = np.linspace(0, T, int(fs * T), endpoint=False)
-# Message signal (binary data)
+    b, a = butter(order, cutoff/(0.5*fs), btype='low')
+    return lfilter(b, a, data)
+
+fs = 1000
+f_carrier = 50
+bit_rate = 10
+T = 1
+
+t = np.linspace(0, T, int(fs*T), endpoint=False)
+
 bits = np.random.randint(0, 2, bit_rate)
 bit_duration = fs // bit_rate
 message_signal = np.repeat(bits, bit_duration)
-# Carrier signal
-carrier = np.sin(2 * np.pi * f_carrier * t)
-# ASK Modulation
+
+carrier = np.sin(2*np.pi*f_carrier*t)
+
 ask_signal = message_signal * carrier
-# ASK Demodulation
-demodulated = ask_signal * carrier # Multiply by carrier for coherent detection
+demodulated = ask_signal * carrier
 filtered_signal = butter_lowpass_filter(demodulated, f_carrier, fs)
+
 decoded_bits = (filtered_signal[::bit_duration] > 0.25).astype(int)
-# Plotting
-plt.figure(figsize=(12, 8))
-plt.subplot(4, 1, 1)
-plt.plot(t, message_signal, label='Message Signal (Binary)', color='b')
-plt.title('Message Signal')
-plt.grid(True)
-plt.subplot(4, 1, 2)
-plt.plot(t, carrier, label='Carrier Signal', color='g')
-plt.title('Carrier Signal')
-plt.grid(True)
-plt.subplot(4, 1, 3)
-plt.plot(t, ask_signal, label='ASK Modulated Signal', color='r')
-plt.title('ASK Modulated Signal')
-plt.grid(True)
-plt.subplot(4, 1, 4)
-plt.step(np.arange(len(decoded_bits)), decoded_bits, label='Decoded Bits', color='r', marker='x')
-plt.title('Decoded Bits')
+
+plt.figure(figsize=(10,8))
+
+plt.subplot(4,1,1)
+plt.plot(t, message_signal)
+plt.title("Message Signal")
+plt.grid()
+
+plt.subplot(4,1,2)
+plt.plot(t, carrier)
+plt.title("Carrier Signal")
+plt.grid()
+
+plt.subplot(4,1,3)
+plt.plot(t, ask_signal)
+plt.title("ASK Modulated Signal")
+plt.grid()
+
+plt.subplot(4,1,4)
+plt.step(range(len(decoded_bits)), decoded_bits)
+plt.title("Demodulated Bits")
+plt.grid()
+
 plt.tight_layout()
 plt.show()
 
 ```
-# FSK
+# Program(FSK)
 ```
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, lfilter
 
-def butter_lowpass_filter(data, cutoff, fs, order=5):
-    nyquist = 0.5 * fs
-    normal_cutoff = cutoff / nyquist
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return lfilter(b, a, data)
+def lpf(x, fc, fs):
+    b, a = butter(4, fc/(0.5*fs))
+    return lfilter(b, a, x)
 
 fs = 1000
 f1 = 30
 f2 = 70
 bit_rate = 10
 T = 1
-t = np.linspace(0, T, int(fs * T), endpoint=False)
+
+t = np.linspace(0, T, fs)
 
 bits = np.random.randint(0, 2, bit_rate)
 bit_duration = fs // bit_rate
-message_signal = np.repeat(bits, bit_duration)
+msg = np.repeat(bits, bit_duration)
 
-carrier_f1 = np.sin(2 * np.pi * f1 * t)
-carrier_f2 = np.sin(2 * np.pi * f2 * t)
+carrier_f1 = np.sin(2*np.pi*f1*t)
+carrier_f2 = np.sin(2*np.pi*f2*t)
 
+# BFSK Modulation
 fsk_signal = np.zeros_like(t)
 for i, bit in enumerate(bits):
-    start = i * bit_duration
-    end = start + bit_duration
-    freq = f2 if bit else f1
-    fsk_signal[start:end] = np.sin(2 * np.pi * freq * t[start:end])
+    s, e = i*bit_duration, (i+1)*bit_duration
+    fsk_signal[s:e] = np.sin(2*np.pi*(f2 if bit else f1)*t[s:e])
 
-ref_f1 = np.sin(2 * np.pi * f1 * t)
-ref_f2 = np.sin(2 * np.pi * f2 * t)
-
-corr_f1 = butter_lowpass_filter(fsk_signal * ref_f1, f2, fs)
-corr_f2 = butter_lowpass_filter(fsk_signal * ref_f2, f2, fs)
+# Coherent Demodulation
+corr_f1 = lpf(fsk_signal * carrier_f1, f2, fs)
+corr_f2 = lpf(fsk_signal * carrier_f2, f2, fs)
 
 decoded_bits = []
 for i in range(bit_rate):
-    start = i * bit_duration
-    end = start + bit_duration
-    energy_f1 = np.sum(corr_f1[start:end] ** 2)
-    energy_f2 = np.sum(corr_f2[start:end] ** 2)
-    decoded_bits.append(1 if energy_f2 > energy_f1 else 0)
-decoded_bits = np.array(decoded_bits)
+    s, e = i*bit_duration, (i+1)*bit_duration
+    decoded_bits.append(
+        1 if np.sum(corr_f2[s:e]**2) > np.sum(corr_f1[s:e]**2) else 0
+    )
+
 demodulated_signal = np.repeat(decoded_bits, bit_duration)
 
-plt.figure(figsize=(12, 12))
+# Plots
+plt.figure(figsize=(10,8))
 
-plt.subplot(6, 1, 1)
-plt.plot(t, message_signal, color='b')
-plt.title('Message Signal')
-plt.grid(True)
+plt.subplot(5,1,1)
+plt.plot(t, msg); plt.title("Message Signal"); plt.grid()
 
-plt.subplot(6, 1, 2)
-plt.plot(t, carrier_f1, color='g')
-plt.title('Carrier Signal for bit = 0 (f1)')
-plt.grid(True)
+plt.subplot(5,1,2)
+plt.plot(t, carrier_f1); plt.title("Carrier Signal (f1)"); plt.grid()
 
-plt.subplot(6, 1, 3)
-plt.plot(t, carrier_f2, color='r')
-plt.title('Carrier Signal for bit = 1 (f2)')
-plt.grid(True)
+plt.subplot(5,1,3)
+plt.plot(t, carrier_f2); plt.title("Carrier Signal (f2)"); plt.grid()
 
-plt.subplot(6, 1, 4)
-plt.plot(t, fsk_signal, color='m')
-plt.title('FSK Modulated Signal')
-plt.grid(True)
+plt.subplot(5,1,4)
+plt.plot(t, fsk_signal); plt.title("FSK Modulated Signal"); plt.grid()
 
-plt.subplot(6, 1, 5)
-plt.plot(t, demodulated_signal, color='k')
-plt.title('Final Demodulated Signal')
-plt.grid(True)
+plt.subplot(5,1,5)
+plt.plot(t, demodulated_signal); plt.title("Demodulated Signal"); plt.grid()
 
 plt.tight_layout()
 plt.show()
 ```
 # Output Waveform
 # ASK
-<img width="1262" height="759" alt="image" src="https://github.com/user-attachments/assets/d76cba6b-f64d-4ea3-a048-6f032a783fb7" />
-
-# FSK
-
-<img width="1132" height="854" alt="image" src="https://github.com/user-attachments/assets/df0c99bd-462a-4115-866d-a652b7f13625" />
+<img width="989" height="790" alt="image" src="https://github.com/user-attachments/assets/cf6687f8-7de8-44a2-bd05-5ffb44e076ab" />
+#  FSK
+<img width="990" height="790" alt="image" src="https://github.com/user-attachments/assets/4cad26bd-f7cc-4601-b827-a16f1d0879d9" />
 
 
 # Results
 
-Thus, a simple Python program for the modulation and demodulation of ASK and FSK executed successfully.
+Thus, the Python program for the modulation and demodulation of ASK and FSK has been successfully simulated and verified.
